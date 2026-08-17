@@ -1,0 +1,23 @@
+{
+  "schemaVersion": 1,
+  "id": "sundscoreboardsync",
+  "version": "${version}",
+  "name": "SunD Scoreboard Sync",
+  "description": "Sincroniza scoreboards y progreso de jugadores de los servidores SunD con MySQL en Contabo.",
+  "authors": ["SunD Studios"],
+  "contact": {
+    "homepage": "https://sund.es"
+  },
+  "license": "MIT",
+  "environment": "*",
+  "entrypoints": {
+    "server": ["es.sund.sundscoreboardsync.SundScoreboardSync"]
+  },
+  "depends": {
+    "fabricloader": ">=0.19.3",
+    "minecraft": "1.21.1",
+    "java": ">=17",
+    "fabric-api": "*",
+    "database-utils": "*"
+  }
+}
