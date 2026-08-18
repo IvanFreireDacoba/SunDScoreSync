@@ -88,4 +88,11 @@ nueva** (nunca directamente contra `main`).
 
 ## Licencia
 
-MIT.
+Licencia propia de SunD Studios ([`LICENSE`](LICENSE)), inspirada en el
+principio ShareAlike de Creative Commons: cualquier derivado debe
+distribuirse con esta misma licencia y siempre de forma gratuita — nadie
+puede cobrar por el mod en sí (descarga, copia o instalación). Se puede
+usar libremente en servidores de pago (rangos, cosméticos, suscripción...)
+siempre que no se cobre por distribuir el mod en sí. Dar crédito se
+agradece pero no es obligatorio; lo que sí está prohibido es apropiarse de
+la autoría.

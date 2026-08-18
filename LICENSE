@@ -1,21 +1,45 @@
-MIT License
+SunD Studios Public License v1.0
+(licencia propia, inspirada en el principio "ShareAlike" de Creative Commons
+BY-SA 4.0, con modificaciones — no es un texto oficial de Creative Commons)
 
 Copyright (c) 2026 SunD Studios
 
-Permission is hereby granted, free of charge, to any person obtaining a copy
-of this software and associated documentation files (the "Software"), to deal
-in the Software without restriction, including without limitation the rights
-to use, copy, modify, merge, publish, distribute, sublicense, and/or sell
-copies of the Software, and to permit persons to whom the Software is
-furnished to do so, subject to the following conditions:
+Se concede permiso para usar, copiar, modificar y distribuir este software,
+en su forma original o modificada, para cualquier propósito, sujeto a las
+siguientes condiciones:
 
-The above copyright notice and this permission notice shall be included in all
-copies or substantial portions of the Software.
+1. Copia idéntica (ShareAlike) obligatoria
+   Cualquier trabajo derivado — una versión modificada, un fork, o cualquier
+   proyecto que incorpore parte de este código — debe distribuirse bajo esta
+   MISMA licencia, íntegra y sin añadir restricciones adicionales. No se
+   permite relicenciar este software ni ningún derivado bajo términos
+   distintos o más restrictivos (incluyendo licencias propietarias o de
+   "todos los derechos reservados").
 
-THE SOFTWARE IS PROVIDED "AS IS", WITHOUT WARRANTY OF ANY KIND, EXPRESS OR
-IMPLIED, INCLUDING BUT NOT LIMITED TO THE WARRANTIES OF MERCHANTABILITY,
-FITNESS FOR A PARTICULAR PURPOSE AND NONINFRINGEMENT. IN NO EVENT SHALL THE
-AUTHORS OR COPYRIGHT HOLDERS BE LIABLE FOR ANY CLAIM, DAMAGES OR OTHER
-LIABILITY, WHETHER IN AN ACTION OF CONTRACT, TORT OR OTHERWISE, ARISING FROM,
-OUT OF OR IN CONNECTION WITH THE SOFTWARE OR THE USE OR OTHER DEALINGS IN THE
-SOFTWARE.
+2. Siempre gratuito
+   Ni este software ni ningún trabajo derivado puede venderse ni
+   distribuirse a cambio de un pago. Nadie puede cobrar por el software en
+   sí — su descarga, copia, acceso al código fuente o al binario compilado —
+   ni en su forma original ni modificada.
+
+   Esto NO impide usarlo dentro de un servicio que sí cobra a sus usuarios
+   por otros conceptos: por ejemplo, un servidor de videojuego de pago
+   (suscripción, rangos, cosméticos, etc.) puede usar libremente este
+   software siempre que no cobre específicamente por distribuirlo — es
+   decir, no puede venderlo aparte ni exigir un pago solo para poder
+   descargarlo o instalarlo.
+
+3. Atribución no obligatoria, pero prohibido apropiarse de la autoría
+   Se agradece (pero no es obligatorio) indicar la autoría original —
+   "SunD Studios" — y, si es posible, un enlace al repositorio original.
+
+   Lo que sí queda explícitamente prohibido, se dé crédito o no, es
+   presentar este software (o un derivado) como obra propia o de autoría
+   distinta a la original: afirmar haberlo creado, ocultar que parte del
+   código proviene de este proyecto, o cualquier otra forma de apropiarse
+   de la autoría real.
+
+4. Sin garantía
+   Este software se ofrece "tal cual", sin ninguna garantía de ningún tipo,
+   expresa o implícita. En ningún caso los autores serán responsables de
+   ningún daño derivado del uso de este software.
