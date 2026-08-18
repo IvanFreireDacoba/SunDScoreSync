@@ -15,10 +15,48 @@ No requiere nada en el cliente — solo se instala en el servidor.
 - Cada `syncIntervalTicks` (configurable) recorre los objetivos de
   scoreboard activos y guarda una fila por jugador/objetivo en una tabla
   `player_scoreboards`, creándola sola si no existe.
-- Solo escritura: hoy no relee valores desde la base de datos hacia el
-  scoreboard del juego.
-- Todas las escrituras van en un hilo aparte dedicado a la base de datos,
-  con reconexión automática si se pierde la conexión.
+- Bidireccional desde la versión 1.1.0: además de juego → BD, también
+  aplica al scoreboard real cualquier fila que llegue marcada como
+  externa (ver "Escribir desde fuera del juego" más abajo).
+- Todas las escrituras/lecturas van en un hilo aparte dedicado a la base
+  de datos, con reconexión automática si se pierde la conexión; la
+  aplicación de un cambio externo al scoreboard real salta de vuelta al
+  hilo del servidor justo antes de tocarlo (es la única parte que tiene
+  que serlo).
+
+## Escribir desde fuera del juego (BD → juego)
+
+La tabla tiene una columna `source ENUM('game','web')`. El mod solo
+escribe `source='game'` (lo que ya hacía antes de la 1.1.0). Cualquier
+sistema externo — tu web, un script, lo que sea con acceso a la base de
+datos — puede hacer que un valor "migre" al juego real insertando o
+actualizando una fila con `source='web'`:
+
+```sql
+INSERT INTO player_scoreboards (instance, player_name, objective, score, source)
+VALUES ('mi_servidor', 'NombreJugador', 'mi_objetivo', 42, 'web')
+ON DUPLICATE KEY UPDATE score = VALUES(score), source = 'web';
+```
+
+En la siguiente pasada de sync (como mucho `syncIntervalTicks`, y hasta un
+ciclo más por el salto asíncrono BD↔servidor) el mod:
+
+- Crea el `objective` en el juego si todavía no existe (criterio `DUMMY`,
+  el mismo que usa cualquier scoreboard "libre" creado por comando).
+- Aplica el valor al jugador indicado, **exista o no esté conectado ahora
+  mismo** — no hace falta que el jugador esté online.
+- En la siguiente pasada de push (juego → BD), ese mismo valor se
+  reafirma solo como `source='game'` — no hace falta marcar nada como
+  "ya aplicado" a mano, el propio ciclo cierra el proceso.
+
+No hace falta ningún trigger de MySQL/MariaDB ni lógica extra en la base
+de datos: es el propio mod, en su ciclo periódico normal, el que revisa
+si hay filas `source='web'` pendientes antes de hacer su push habitual.
+
+**Migrar una tabla que ya existe en producción**: la columna `source` se
+añade sola al arrancar el mod (`ALTER TABLE ... ADD COLUMN IF NOT EXISTS`,
+seguro de ejecutar aunque la tabla ya tenga datos) — no hace falta tocar
+nada a mano.
 
 ## Estructura
 
@@ -76,7 +114,9 @@ cd ../1.21.1 && ./gradlew build   # jar en 1.21.1/build/libs/
 
 ## Releases
 
-`v1.0.0-mc1.20.1` y `v1.0.0-mc1.21.1`, cada una con su jar ya compilado.
+`v1.1.0-mc1.20.1` y `v1.1.0-mc1.21.1` (añaden la sincronización BD → juego),
+`v1.0.0-mc1.20.1` y `v1.0.0-mc1.21.1` (solo juego → BD), cada una con su
+jar ya compilado.
 
 ## Contribuciones
 

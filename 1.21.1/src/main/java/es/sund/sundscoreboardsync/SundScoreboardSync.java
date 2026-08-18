@@ -3,15 +3,20 @@ package es.sund.sundscoreboardsync;
 import net.fabricmc.api.DedicatedServerModInitializer;
 import net.fabricmc.fabric.api.event.lifecycle.v1.ServerLifecycleEvents;
 import net.fabricmc.fabric.api.event.lifecycle.v1.ServerTickEvents;
+import net.minecraft.network.chat.Component;
 import net.minecraft.server.MinecraftServer;
 import net.minecraft.server.ServerScoreboard;
 import net.minecraft.server.level.ServerPlayer;
 import net.minecraft.world.scores.Objective;
 import net.minecraft.world.scores.PlayerScoreEntry;
+import net.minecraft.world.scores.ScoreAccess;
+import net.minecraft.world.scores.ScoreHolder;
+import net.minecraft.world.scores.criteria.ObjectiveCriteria;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 
 import java.util.HashMap;
+import java.util.List;
 import java.util.Map;
 
 /**
@@ -89,6 +94,12 @@ public final class SundScoreboardSync implements DedicatedServerModInitializer {
         if (database == null) {
             return;
         }
+
+        // Direccion BD -> juego primero, ver el mismo bloque en la version
+        // 1.20.1 para la explicacion completa (lectura async + server.execute
+        // + el push de mas abajo reafirmando source='game' cierra el ciclo).
+        database.pullWebChangesAsync(changes -> server.execute(() -> applyWebChanges(server, changes)));
+
         ServerScoreboard scoreboard = server.getScoreboard();
 
         for (Objective objective : scoreboard.getObjectives()) {
@@ -113,5 +124,39 @@ public final class SundScoreboardSync implements DedicatedServerModInitializer {
     private String resolveUuid(MinecraftServer server, String playerName) {
         ServerPlayer player = server.getPlayerList().getPlayerByName(playerName);
         return player != null ? player.getUUID().toString() : null;
+    }
+
+    /**
+     * Aplica al scoreboard real cambios escritos externamente. Se ejecuta
+     * ya en el hilo del servidor (ver la llamada en syncAll).
+     *
+     * Diferencias reales frente a la version 1.20.1 (confirmadas con
+     * javap contra el jar merged real de este build, no adivinadas):
+     * - addObjective ahora pide 6 argumentos, no 4: se anaden un boolean
+     *   "autoUpdate" (false -- no aplica a un criterio DUMMY, ese flag es
+     *   para criterios vanilla como HEALTH que el propio juego mantiene
+     *   solo) y un NumberFormat opcional (null, mismo formato de numero
+     *   por defecto que el resto del juego).
+     * - Ya no hay getOrCreatePlayerScore(String, Objective): Score. El
+     *   reemplazo es getOrCreatePlayerScore(ScoreHolder, Objective):
+     *   ScoreAccess -- ScoreHolder.forNameOnly(String) crea uno valido
+     *   para un nombre que no tiene por que estar online, exactamente
+     *   igual de seguro para jugadores desconectados que el
+     *   getOrCreatePlayerScore por String de 1.20.1.
+     */
+    private void applyWebChanges(MinecraftServer server, List<es.sund.sundscoreboardsync.WebScoreChange> changes) {
+        ServerScoreboard scoreboard = server.getScoreboard();
+        for (es.sund.sundscoreboardsync.WebScoreChange change : changes) {
+            Objective objective = scoreboard.getObjective(change.objective());
+            if (objective == null) {
+                objective = scoreboard.addObjective(change.objective(), ObjectiveCriteria.DUMMY,
+                        Component.literal(change.objective()), ObjectiveCriteria.RenderType.INTEGER,
+                        false, null);
+            }
+            ScoreHolder holder = ScoreHolder.forNameOnly(change.playerName());
+            ScoreAccess access = scoreboard.getOrCreatePlayerScore(holder, objective);
+            access.set(change.score());
+            LOGGER.info("Aplicado desde la web: {} {} = {}", change.playerName(), change.objective(), change.score());
+        }
     }
 }
