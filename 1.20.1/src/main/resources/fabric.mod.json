@@ -3,12 +3,13 @@
   "id": "sundscoreboardsync",
   "version": "${version}",
   "name": "SunD Scoreboard Sync",
-  "description": "Sincroniza scoreboards y progreso de jugadores de los servidores SunD con MySQL en Contabo.",
+  "description": "Sincroniza scoreboards de jugadores con una base de datos MySQL/MariaDB, de forma asincrona.",
   "authors": ["SunD Studios"],
   "contact": {
-    "homepage": "https://sund.es"
+    "homepage": "https://sund.es",
+    "sources": "https://github.com/IvanFreireDacoba/SunDScoreSync"
   },
-  "license": "MIT",
+  "license": "Custom (SunD Studios Public License v1.0 -- ver LICENSE)",
   "environment": "*",
   "entrypoints": {
     "server": ["es.sund.sundscoreboardsync.SundScoreboardSync"]
