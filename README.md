@@ -1,77 +1,83 @@
 # SunD Scoreboard Sync
 
-Mod Fabric que sincroniza scoreboards de jugadores a MySQL (Contabo, BD
-`SunD_Origins`/`SunD_CobbleSpain` según servidor, la misma que ya usa
-LuckPerms). Contexto completo, decisiones de diseño y estado real: ver
-`datos extra/Documentacion/RESUME.md` en el repo de SunDLauncher/web.
+Mod de Fabric, **solo servidor**, que sincroniza los scoreboards de los
+jugadores con una base de datos MySQL/MariaDB, de forma asíncrona (nunca
+bloquea el hilo principal del servidor).
 
-**Estado**: en producción en SunD Origins (1.20.1) desde 2026-08-14.
-Portado a 1.21.1 (CobbleSpain) y publicado como release `1.0.0` en ambas
-versiones el 2026-08-17 — mismo patrón de dos builds que
-[SunDAuthSystem](https://github.com/IvanFreireDacoba/SunDAuthSystem).
+Pensado originalmente para los servidores de SunD Studios, pero sin nada
+específico de ese proyecto: funciona en cualquier servidor Fabric con
+acceso a una base de datos MySQL/MariaDB propia.
 
-## Estructura
+## Qué hace
 
-Igual patrón que `sundauth-fabric`: código compartido en `common/`, un
-subproyecto Gradle independiente por versión de Minecraft.
+- Cada `syncIntervalTicks` (configurable) recorre los objetivos de
+  scoreboard activos y guarda una fila por jugador/objetivo en una tabla
+  `player_scoreboards`, creándola sola si no existe.
+- Solo escritura: hoy no relee valores desde la base de datos hacia el
+  scoreboard del juego.
+- Todas las escrituras van en un hilo aparte dedicado a la base de datos,
+  con reconexión automática si se pierde la conexión.
 
-- `common/src/main/java/.../SundScoreboardConfig.java` — lee/genera
-  `config/sundscoreboardsync.properties`. Sin dependencias de Minecraft,
-  compartido tal cual entre las dos versiones.
-- `common/src/main/java/.../ScoreboardDatabase.java` — JDBC directo
-  (`DriverManager`, no la API propia de `database-utils` — ver RESUME.md
-  para el porqué), escrituras async. Tampoco depende de clases de
-  Minecraft, compartido tal cual.
-- `1.20.1/src/main/java/.../SundScoreboardSync.java` y
-  `1.21.1/src/main/java/.../SundScoreboardSync.java` — entrypoint, bucle de
-  sync cada `syncIntervalTicks`. **No están en `common`**: Mojang reescribió
-  la API de scoreboard entre 1.20.1 y 1.21.x (`String` -> `ScoreHolder`,
-  `Score#getScore()` -> `ScoreAccess` separado de
-  `Scoreboard#listPlayerScores`), así que cada versión tiene su propia
-  implementación de la misma lógica (mismo resultado final: mismas filas en
-  `player_scoreboards`).
+## Instalación
 
-## Compilar
+1. Descarga el jar de la versión de Minecraft que uses desde
+   [Releases](https://github.com/IvanFreireDacoba/SunDScoreSync/releases)
+   y colócalo en `mods/`, junto a Fabric API.
+2. Copia también `database-utils-1.0.0.jar` (incluido en `libs/` de cada
+   subproyecto de este repo) a `mods/` — es una dependencia necesaria.
+3. Arranca el servidor una vez para que se genere
+   `config/sundscoreboardsync.properties` con valores vacíos.
+4. Rellena esa config con los datos de tu propia base de datos:
 
-Cada versión es un proyecto Gradle independiente (mismo motivo que
-`sundauth-fabric`: cada `./gradlew` remapea contra los mappings oficiales
-de Mojang de esa versión de Minecraft exacta).
+   ```properties
+   dbHost=localhost
+   dbPort=3306
+   dbName=mi_base_de_datos
+   dbUser=mi_usuario
+   dbPassword=mi_contraseña
+   instanceName=mi_servidor
+   syncIntervalTicks=600
+   ```
 
-```bash
-export JAVA_HOME=~/.gradle/jdks/eclipse_adoptium-21-amd64-linux.2   # o cualquier JDK 21+, el JRE del sistema no trae javac
-export PATH="$JAVA_HOME/bin:$PATH"
+   `instanceName` es solo una etiqueta para distinguir servidores si varios
+   comparten la misma base de datos; `syncIntervalTicks` son ticks de
+   servidor (20 = 1 segundo).
+5. Reinicia el servidor.
 
-cd 1.20.1 && ./gradlew build   # jar en 1.20.1/build/libs/sundscoreboardsync-<version>.jar
-cd ../1.21.1 && ./gradlew build   # jar en 1.21.1/build/libs/sundscoreboardsync-<version>.jar
+## Estructura del proyecto
+
+Código compartido en `common/` (sin dependencias de Minecraft: lectura de
+config y acceso a la base de datos) y un subproyecto Gradle independiente
+por versión soportada de Minecraft:
+
+```
+common/     Config y capa de base de datos, compartidos tal cual.
+1.20.1/     Build de Gradle/Loom para Minecraft 1.20.1.
+1.21.1/     Build de Gradle/Loom para Minecraft 1.21.1.
 ```
 
-## Desplegar (cambio de producción, no automático)
+La única clase que no se comparte es el entrypoint (`SundScoreboardSync`,
+uno por versión): Mojang reescribió la API de scoreboard entre 1.20.1 y
+1.21.x (`String` → `ScoreHolder`, `Score#getScore()` → `ScoreAccess`
+separado de `Scoreboard`), así que cada versión tiene su propia
+implementación con el mismo resultado final.
 
-1. Copiar `build/libs/sundscoreboardsync-*.jar` (sin el `-sources.jar`) a
-   `mods/` del servidor correspondiente (SunD Origins o CobbleSpain).
-2. Confirmar que `database-utils-1.0.0.jar` sigue en `mods/` (dependencia,
-   ver `libs/database-utils-1.0.0.jar` de cada subproyecto).
-3. Confirmar que `config/sundscoreboardsync.properties` de ese servidor
-   tiene credenciales reales (SunD Origins ya las tiene, ver RESUME.md;
-   CobbleSpain lo genera vacío al primer arranque, hay que rellenarlo a
-   mano igual que `config/sundauth.properties`).
-4. Comprobar jugadores conectados (`logs/latest.log`) antes de reiniciar.
-5. `sudo systemctl restart <servicio>` (sin sudo sin contraseña en esta
-   máquina -- pedir al usuario que lo ejecute con `!`).
-6. Verificar en el log: `Conectado a MySQL (...)` sin errores.
+## Compilar desde el código
 
-## Releases
+Requiere JDK 21+ (el runtime del propio servidor puede ser otro, esto es
+solo para compilar).
 
-Publicadas en este repo (privado): `v1.0.0-mc1.20.1` (SunD Origins) y
-`v1.0.0-mc1.21.1` (CobbleSpain), cada una con su jar ya compilado.
+```bash
+cd 1.20.1 && ./gradlew build   # jar en 1.20.1/build/libs/
+cd ../1.21.1 && ./gradlew build   # jar en 1.21.1/build/libs/
+```
 
-## Pendiente
+## Contribuciones
 
-- Confirmar con el usuario qué datos exactos hay que persistir además de
-  scoreboards sueltos (progreso de clase, puntos de habilidad, maestría
-  de armas) antes de tocar el esquema de `player_scoreboards`.
-- Resolver UUID también para jugadores offline (hoy solo se resuelve si
-  están conectados en el momento del sync).
-- CobbleSpain: nunca se ha probado contra un servidor real (el jar de
-  1.21.1 está compilado y verificado, pero sin poder levantar Minecraft
-  desde este entorno de trabajo, mismo límite que sundauth-fabric).
+Se aceptan sugerencias y peticiones de mejora vía Issues. Los pull
+requests son bienvenidos, siempre en una rama nueva (no directamente
+sobre `main`).
+
+## Licencia
+
+MIT.
