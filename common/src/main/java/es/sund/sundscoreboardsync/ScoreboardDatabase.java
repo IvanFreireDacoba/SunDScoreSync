@@ -52,14 +52,23 @@ public final class ScoreboardDatabase {
      * Conecta y crea/actualiza la tabla si hace falta. Bloqueante -- se
      * llama solo una vez, al arrancar el mod.
      *
-     * El ALTER TABLE ... ADD COLUMN IF NOT EXISTS es deliberado y separado
-     * del CREATE TABLE IF NOT EXISTS: una instalacion nueva ya crea la
-     * columna en el CREATE, pero una tabla que ya existia en produccion
-     * (SunD Origins la tiene desde antes de esta columna) necesita el
-     * ALTER para adquirirla -- MySQL no altera retroactivamente una tabla
-     * ya creada solo porque cambie el texto de un CREATE TABLE IF NOT
-     * EXISTS. La sintaxis "IF NOT EXISTS" del ALTER (MySQL 8.0+/MariaDB
-     * 10.0.2+) hace que sea seguro ejecutarlo siempre, en ambos casos.
+     * El ALTER TABLE que añade la columna `source` es deliberado y
+     * separado del CREATE TABLE IF NOT EXISTS: una instalacion nueva ya
+     * crea la columna en el CREATE, pero una tabla que ya existia en
+     * produccion (SunD Origins la tiene desde antes de esta columna)
+     * necesita el ALTER para adquirirla -- MySQL no altera
+     * retroactivamente una tabla ya creada solo porque cambie el texto
+     * de un CREATE TABLE IF NOT EXISTS.
+     *
+     * "ADD COLUMN IF NOT EXISTS" es sintaxis de MariaDB, no de MySQL
+     * estandar -- reproducido contra la MySQL 8.0.46 real de produccion
+     * (Contabo): revienta con SQLSyntaxErrorException, y como la columna
+     * nunca llega a crearse, toda lectura/escritura posterior que la usa
+     * falla en bucle con "Unknown column 'source'" cada ciclo de sync.
+     * Portable de verdad: se comprueba antes contra information_schema.
+     * columns si la columna ya existe (funciona igual en MySQL y
+     * MariaDB) y solo se ejecuta el ALTER llano (sin IF NOT EXISTS) si
+     * hace falta.
      */
     public void connectAndEnsureSchema() throws SQLException {
         connection = DriverManager.getConnection(jdbcUrl(), config.dbUser, config.dbPassword);
@@ -77,10 +86,30 @@ public final class ScoreboardDatabase {
                 """)) {
             stmt.execute();
         }
-        try (PreparedStatement stmt = connection.prepareStatement(
-                "ALTER TABLE player_scoreboards ADD COLUMN IF NOT EXISTS "
-                        + "source ENUM('game','web') NOT NULL DEFAULT 'game' AFTER score")) {
-            stmt.execute();
+        if (!columnExists("player_scoreboards", "source")) {
+            try (PreparedStatement stmt = connection.prepareStatement(
+                    "ALTER TABLE player_scoreboards ADD COLUMN "
+                            + "source ENUM('game','web') NOT NULL DEFAULT 'game' AFTER score")) {
+                stmt.execute();
+            }
+        }
+    }
+
+    /**
+     * Comprobacion portable (MySQL y MariaDB) de si una columna ya
+     * existe, contra information_schema.columns filtrando por la base de
+     * datos actual (DATABASE()) en vez de asumir "IF NOT EXISTS" en el
+     * propio ALTER, que MySQL estandar no soporta.
+     */
+    private boolean columnExists(String table, String column) throws SQLException {
+        String sql = "SELECT 1 FROM information_schema.columns "
+                + "WHERE table_schema = DATABASE() AND table_name = ? AND column_name = ?";
+        try (PreparedStatement stmt = connection.prepareStatement(sql)) {
+            stmt.setString(1, table);
+            stmt.setString(2, column);
+            try (ResultSet rs = stmt.executeQuery()) {
+                return rs.next();
+            }
         }
     }
 
